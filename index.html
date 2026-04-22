@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Waggle</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 2rem; color: #222; }
+    h1 { margin-bottom: 1rem; }
+    #status { color: #666; font-size: 0.9rem; margin-bottom: 1rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem 0.75rem; text-align: left; }
+    th { background: #f4f4f4; position: sticky; top: 0; }
+    tr:nth-child(even) td { background: #fafafa; }
+  </style>
+</head>
+<body>
+  <h1>Waggle</h1>
+  <div id="status">Loading…</div>
+  <div id="table-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script>
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT3MrIAddzbEoJPCkJ5AqaYwYRC0Hwr7E6vwtdJ-jfOdMH4mhB9RqVHMmEIXZ2QWVFG0q6O5v3dJt0N/pub?output=csv";
+
+    Papa.parse(CSV_URL, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const status = document.getElementById("status");
+        const container = document.getElementById("table-container");
+
+        if (!results.data.length) {
+          status.textContent = "No rows found.";
+          return;
+        }
+
+        const headers = results.meta.fields;
+        const table = document.createElement("table");
+        const thead = table.createTHead();
+        const headerRow = thead.insertRow();
+        headers.forEach((h) => {
+          const th = document.createElement("th");
+          th.textContent = h;
+          headerRow.appendChild(th);
+        });
+
+        const tbody = table.createTBody();
+        results.data.forEach((row) => {
+          const tr = tbody.insertRow();
+          headers.forEach((h) => {
+            const td = tr.insertCell();
+            td.textContent = row[h] ?? "";
+          });
+        });
+
+        container.appendChild(table);
+        status.textContent = `${results.data.length} rows loaded.`;
+      },
+      error: (err) => {
+        document.getElementById("status").textContent = "Failed to load sheet: " + err.message;
+      },
+    });
+  </script>
+</body>
+</html>
