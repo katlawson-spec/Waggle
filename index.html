@@ -18,7 +18,12 @@
     * { box-sizing: border-box; }
     body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
     header { padding: 1.5rem 2rem; border-bottom: 1px solid var(--border); background: var(--card); }
-    header h1 { margin: 0; font-size: 1.5rem; }
+    header h1 { margin: 0; font-size: 1.5rem; display: flex; align-items: center; gap: 0.6rem; }
+    header h1 svg { width: 32px; height: 32px; color: var(--accent); transform-origin: 20% 80%; animation: wag 1.2s ease-in-out infinite; }
+    @keyframes wag {
+      0%, 100% { transform: rotate(-15deg); }
+      50%      { transform: rotate(20deg); }
+    }
     header .subtitle { color: var(--muted); font-size: 0.9rem; margin-top: 0.25rem; }
     main { padding: 1.5rem 2rem; }
     #status { color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
@@ -48,7 +53,12 @@
 </head>
 <body>
   <header>
-    <h1>Waggle</h1>
+    <h1>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 20 C 8 16, 10 14, 12 10 C 14 6, 18 4, 21 5 C 20 8, 18 10, 15 11 C 14 11.3, 13 11.5, 12 12"/>
+      </svg>
+      Waggle
+    </h1>
     <div class="subtitle">Rescue dashboard — live from Dogs Master</div>
   </header>
   <main>
