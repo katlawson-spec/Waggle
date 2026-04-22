@@ -3,25 +3,84 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Waggle</title>
+  <title>Waggle — Rescue Dashboard</title>
   <style>
-    body { font-family: system-ui, -apple-system, sans-serif; margin: 2rem; color: #222; }
-    h1 { margin-bottom: 1rem; }
-    #status { color: #666; font-size: 0.9rem; margin-bottom: 1rem; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #ddd; padding: 0.5rem 0.75rem; text-align: left; }
-    th { background: #f4f4f4; position: sticky; top: 0; }
-    tr:nth-child(even) td { background: #fafafa; }
+    :root {
+      --bg: #f7f7f8;
+      --card: #ffffff;
+      --border: #e5e7eb;
+      --text: #111827;
+      --muted: #6b7280;
+      --accent: #2563eb;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+    header { padding: 1.5rem 2rem; border-bottom: 1px solid var(--border); background: var(--card); }
+    header h1 { margin: 0; font-size: 1.5rem; }
+    header .subtitle { color: var(--muted); font-size: 0.9rem; margin-top: 0.25rem; }
+    main { padding: 1.5rem 2rem; }
+    #status { color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+    }
+    .stat .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+    .stat .value { font-size: 1.75rem; font-weight: 600; margin-top: 0.25rem; color: var(--text); }
+
+    h2 { font-size: 1.1rem; margin: 0 0 0.75rem 0; }
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: auto; max-height: 70vh; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { border-bottom: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; white-space: nowrap; }
+    th { background: #f9fafb; position: sticky; top: 0; font-weight: 600; }
+    tr:hover td { background: #f9fafb; }
   </style>
 </head>
 <body>
-  <h1>Waggle</h1>
-  <div id="status">Loading…</div>
-  <div id="table-container"></div>
+  <header>
+    <h1>Waggle</h1>
+    <div class="subtitle">Rescue dashboard — live from Dogs Master</div>
+  </header>
+  <main>
+    <div id="status">Loading…</div>
+
+    <section class="stats" id="stats" hidden>
+      <div class="stat"><div class="label">Total dogs</div><div class="value" id="stat-total">—</div></div>
+      <div class="stat"><div class="label">In foster</div><div class="value" id="stat-foster">—</div></div>
+      <div class="stat"><div class="label">Medical hold</div><div class="value" id="stat-medical">—</div></div>
+      <div class="stat"><div class="label">Adoption pending</div><div class="value" id="stat-pending">—</div></div>
+      <div class="stat"><div class="label">Adopted</div><div class="value" id="stat-adopted">—</div></div>
+      <div class="stat"><div class="label">Avg days in rescue</div><div class="value" id="stat-days">—</div></div>
+      <div class="stat"><div class="label">Total adoption fees</div><div class="value" id="stat-fees">—</div></div>
+    </section>
+
+    <h2>Dogs Master</h2>
+    <div class="table-wrap"><div id="table-container"></div></div>
+  </main>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script>
-    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT3MrIAddzbEoJPCkJ5AqaYwYRC0Hwr7E6vwtdJ-jfOdMH4mhB9RqVHMmEIXZ2QWVFG0q6O5v3dJt0N/pub?output=csv";
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT3MrIAddzbEoJPCkJ5AqaYwYRC0Hwr7E6vwtdJ-jfOdMH4mhB9RqVHMmEIXZ2QWVFG0q6O5v3dJt0N/pub?gid=1228898524&single=true&output=csv";
+
+    const norm = (s) => (s ?? "").toString().trim().toLowerCase();
+    const parseMoney = (s) => {
+      if (s == null) return 0;
+      const n = parseFloat(String(s).replace(/[^0-9.\-]/g, ""));
+      return isNaN(n) ? 0 : n;
+    };
+    const parseNum = (s) => {
+      const n = parseFloat(String(s ?? "").replace(/[^0-9.\-]/g, ""));
+      return isNaN(n) ? null : n;
+    };
+    const fmtMoney = (n) => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
     Papa.parse(CSV_URL, {
       download: true,
@@ -29,12 +88,36 @@
       skipEmptyLines: true,
       complete: (results) => {
         const status = document.getElementById("status");
-        const container = document.getElementById("table-container");
+        const rows = results.data.filter((r) => norm(r["Dog ID"]));
+        if (!rows.length) { status.textContent = "No rows found."; return; }
 
-        if (!results.data.length) {
-          status.textContent = "No rows found.";
-          return;
+        let total = 0, foster = 0, medical = 0, pending = 0, adopted = 0;
+        let daysSum = 0, daysCount = 0, feeSum = 0;
+
+        for (const r of rows) {
+          total++;
+          const st = norm(r["Status"]);
+          const medHold = norm(r["Medical Hold?"]) === "yes";
+
+          if (st === "in foster") foster++;
+          if (st === "medical hold" || medHold) medical++;
+          if (st === "adoption pending") pending++;
+          if (st === "adopted") adopted++;
+
+          const d = parseNum(r["Days in Rescue"]);
+          if (d !== null) { daysSum += d; daysCount++; }
+
+          feeSum += parseMoney(r["Adoption Fee"]);
         }
+
+        document.getElementById("stat-total").textContent = total;
+        document.getElementById("stat-foster").textContent = foster;
+        document.getElementById("stat-medical").textContent = medical;
+        document.getElementById("stat-pending").textContent = pending;
+        document.getElementById("stat-adopted").textContent = adopted;
+        document.getElementById("stat-days").textContent = daysCount ? (daysSum / daysCount).toFixed(1) : "—";
+        document.getElementById("stat-fees").textContent = fmtMoney(feeSum);
+        document.getElementById("stats").hidden = false;
 
         const headers = results.meta.fields;
         const table = document.createElement("table");
@@ -45,18 +128,16 @@
           th.textContent = h;
           headerRow.appendChild(th);
         });
-
         const tbody = table.createTBody();
-        results.data.forEach((row) => {
+        rows.forEach((row) => {
           const tr = tbody.insertRow();
           headers.forEach((h) => {
             const td = tr.insertCell();
             td.textContent = row[h] ?? "";
           });
         });
-
-        container.appendChild(table);
-        status.textContent = `${results.data.length} rows loaded.`;
+        document.getElementById("table-container").appendChild(table);
+        status.textContent = `${rows.length} dogs loaded.`;
       },
       error: (err) => {
         document.getElementById("status").textContent = "Failed to load sheet: " + err.message;
